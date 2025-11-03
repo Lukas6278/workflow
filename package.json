@@ -1,0 +1,12 @@
+{
+  "name": "meu-workflow-worker",
+  "version": "1.0.0",
+  "description": "Workflow Worker em JS puro com Cloudflare Workflows",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.45.3"
+  }
+}

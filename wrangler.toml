@@ -1,0 +1,9 @@
+name = "workflow-starter"
+main = "src/workflow-starter.js"
+compatibility_date = "2025-11-03"
+
+[[workflows]]
+name = "MEU_WORKFLOW"
+binding = "MEU_WORKFLOW"
+class_name = "MeuWorkflow"
+
