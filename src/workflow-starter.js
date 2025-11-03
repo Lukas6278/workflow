@@ -18,7 +18,7 @@ export default {
 					method : 'POST',
 					contentType,
 					callbackUrl,
-					payload: body,
+					payload: JSON.stringify(body),
 			});
 
 			console.log(`[STARTER] Workflow ${instance.id} criado para ${targetUrl}`);

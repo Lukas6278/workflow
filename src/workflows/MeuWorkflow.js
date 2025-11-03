@@ -4,23 +4,19 @@ export class MeuWorkflow extends WorkflowEntrypoint {
   async run(event, step) {
     try {
       const {
-        targetUrl,
         method = 'POST',
         contentType = 'application/json',
         payload,
         callbackUrl,
       } = event;
 
-      const safeTarget =
-        targetUrl && targetUrl !== 'undefined'
-          ? targetUrl
-          : `${new URL('/target', 'http://127.0.0.1:8787').href}`;
+      const targetUrl = 'https://workflow-target.meu-ai-worker.workers.dev/target';
 
-      console.log('[WORKFLOW] Step 1: Enviando POST para alvo →', safeTarget);
+      console.log('[WORKFLOW] Step 1: Enviando POST para o Worker alvo →', targetUrl);
 
-      // STEP 1
+      // STEP 1  faz o POST
       const result = await step.do('POST para Worker alvo', async () => {
-        const resp = await fetch(safeTarget, {
+        const resp = await fetch(targetUrl, {
           method,
           headers: { 'Content-Type': contentType },
           body: payload,
@@ -32,9 +28,9 @@ export class MeuWorkflow extends WorkflowEntrypoint {
 
       console.log(`[WORKFLOW] Step 1 completo. Status: ${result.status}`);
 
-      // STEP 2
-      if (callbackUrl && callbackUrl !== 'undefined') {
-        console.log('[WORKFLOW] Step 2: Enviando callback para', callbackUrl);
+      // STEP 2 
+      if (callbackUrl) {
+        console.log('[WORKFLOW] Step 2: Enviando callback →', callbackUrl);
         await step.do('Enviar callback', async () => {
           await fetch(callbackUrl, {
             method: 'POST',
@@ -46,6 +42,7 @@ export class MeuWorkflow extends WorkflowEntrypoint {
             }),
           });
         });
+
         console.log('[WORKFLOW] Callback enviado com sucesso.');
       }
 
