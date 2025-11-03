@@ -3,32 +3,36 @@ import {MeuWorkflow} from './workflows/MeuWorkflow.js';
 export default {
 	async fetch(request, env) {
 		try {
+			const method = request.method;
+			const contentType = request.headers.get('Content-Type') || 'application/octet-stream';
+			const callbackUrl = request.headers.get('X-Callback-URL') || '';
+		
+			console.log('[STARTER] Requisição recebida:', {method, contentType});
 
-			// Define para onde o workflow vai apontar
 			const targetUrl = 'https://google.com';
 
-			console.log(
-				targetUrl,
-			);
+			const body = await request.arrayBuffer();
 
-			const callback = request.headers.get('X-Callback-URL') || '';
-
-			const resp = await fetch(targetUrl, {
-				method: 'GET',
+			const instance = await env.MEU_WORKFLOW.create({
+					targetUrl,
+					method : 'POST',
+					contentType,
+					callbackUrl,
+					payload: body,
 			});
-			console.log(resp, JSON.stringify(resp));
-			const responseText = await resp.text();
-			const step2 = await fetch(callback);
-			console.log(step2, JSON.stringify(step2));
-      
 
-			// console.log(`[LOG] Workflow ${instance.id} criado para ${targetUrl}`);
+			console.log(`[STARTER] Workflow ${instance.id} criado para ${targetUrl}`);
 
 			return new Response(
-				JSON.stringify({status: 'ok', message: 'Workflow iniciado em background'}),
+				JSON.stringify({
+					status: 'ok',
+					message: 'Workflow criado e rodando em background',
+					id: instance.id,
+				}),
 				{status: 200, headers: {'Content-Type': 'application/json'}}
 			);
 		} catch (err) {
+			console.error('[STARTER] Erro:', err);
 			return new Response(JSON.stringify({error: err.message}), {
 				status: 500,
 				headers: {'Content-Type': 'application/json'},
