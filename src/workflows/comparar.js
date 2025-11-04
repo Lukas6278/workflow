@@ -1,19 +1,19 @@
-import {WorkflowEntrypoint} from 'cloudflare:workers';
+import { WorkflowEntrypoint } from 'cloudflare:workers';
 
 export class MeuWorkflow extends WorkflowEntrypoint {
 	async run(event, step) {
 		try {
+			// tudo que o starter enviar deve estar em event.payload
 			const {
 				method = 'POST',
 				contentType = 'application/json',
 				payload,
 				callbackUrl,
-				targetUrl,
-				headers = {},
+				targetUrl = 'https://workflow-starter.fariasribas.workers.dev', // prod
+				headers = {}, // extra headers para o target (opcional)
 			} = event?.payload ?? {};
 
-			// Verificando se targetUrl está presente
-			if (!targetUrl) return {done: false, error: 'targetUrl missing'};
+			if (!targetUrl) return { done: false, error: 'targetUrl missing' };
 
 			// monta URL (e garante que existe como variável!)
 			const url = new URL(targetUrl);
@@ -46,9 +46,9 @@ export class MeuWorkflow extends WorkflowEntrypoint {
 
 			// STEP 1: faz o POST
 			const result = await step.do('POST para Worker alvo', async () => {
-				const resp = await fetch(url.toString(), {method, headers: finalHeaders, body});
+				const resp = await fetch(url.toString(), { method, headers: finalHeaders, body });
 				const text = await resp.text();
-				return {status: resp.status, body: text};
+				return { status: resp.status, body: text };
 			});
 
 			console.log(`[WORKFLOW] Step 1 completo. Status: ${result.status}`);
@@ -56,51 +56,24 @@ export class MeuWorkflow extends WorkflowEntrypoint {
 
 			// STEP 2: callback opcional
 			if (callbackUrl) {
-				await this.sendCallback(callbackUrl, result);
+				await step.do('Enviar callback', async () => {
+					await fetch(callbackUrl, {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({
+							workflow: 'concluído',
+							result,
+							timestamp: new Date().toISOString(),
+						}),
+					});
+				});
+				console.log('[WORKFLOW] Callback enviado com sucesso.');
 			}
 
-			return {done: true, result};
+			return { done: true, result };
 		} catch (err) {
 			console.error('[WORKFLOW] Erro:', err?.message || err);
-			return {done: false, error: String(err?.message || err)};
+			return { done: false, error: String(err?.message || err) };
 		}
-	}
-
-	buildHeaders(headers, contentType) {
-		const finalHeaders = new Headers(headers);
-		if (contentType && !finalHeaders.has('content-type')) {
-			finalHeaders.set('content-type', contentType);
-		}
-		finalHeaders.set('x-internal-workflow', '1');
-		return finalHeaders;
-	}
-
-	buildBody(payload, finalHeaders) {
-		if (payload == null) return undefined;
-		if (
-			typeof payload === 'string' ||
-			payload instanceof ArrayBuffer ||
-			payload instanceof Uint8Array
-		) {
-			return payload;
-		}
-		if ((finalHeaders.get('content-type') || '').includes('application/json')) {
-			return JSON.stringify(payload);
-		}
-		return String(payload);
-	}
-	//decide como transformar o payload em algo/formato a ser enviado pelo fetch
-
-	async sendCallback(callbackUrl, result) {
-		await fetch(callbackUrl, {
-			method: 'POST',
-			headers: {'Content-Type': 'application/json'},
-			body: JSON.stringify({
-				workflow: 'concluído',
-				result,
-				timestamp: new Date().toISOString(),
-			}),
-		});
-		console.log('[WORKFLOW] Callback enviado com sucesso.');
 	}
 }
