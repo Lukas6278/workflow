@@ -6,11 +6,10 @@ export class MeuWorkflow extends WorkflowEntrypoint {
 			const {
 				targetUrl,
 				callbackUrl,
-				contentType = 'application/json',
 				payload,
 				headers = {},
 				body,
-				method = 'POST',
+				// method = 'POST', nao precisa ja ta vindo so start fixo POST
 			} = event?.payload ?? {};
 
 			// Monta URL
@@ -25,14 +24,6 @@ export class MeuWorkflow extends WorkflowEntrypoint {
 
 
 			const  finalBody = JSON.stringify({payload: payload || {}, headers: headers || {}});
-
-			// Log e Step 1
-			const len = typeof finalBody === 'string' ? finalBody.length : finalBody?.byteLength ?? 0;
-			console.log(
-				`[WORKFLOW] Step 1: Enviando ${method} → ${url.toString()} | CT=${finalHeaders.get(
-					'content-type'
-				)} | LEN=${len}`
-			);
 
 			const result = await step.do('Step 1 - POST para', async () => {
 				const resp = await fetch(url.toString(), {
