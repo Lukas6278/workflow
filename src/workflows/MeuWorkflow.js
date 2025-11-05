@@ -4,92 +4,84 @@ export class MeuWorkflow extends WorkflowEntrypoint {
 	async run(event, step) {
 		try {
 			const {
-				method = 'POST',
+				targetUrl,
+				callbackUrl,
 				contentType = 'application/json',
 				payload,
-				callbackUrl,
-				targetUrl,
 				headers = {},
+				body,
+				method = 'POST',
 			} = event?.payload ?? {};
 
-			// Verificando se targetUrl está presente
-			if (!targetUrl) return {done: false, error: 'targetUrl missing'};
-
-			// monta URL (e garante que existe como variável!)
+			// Monta URL
 			const url = new URL(targetUrl);
 
-			// headers finais + fusível anti-loop
+			// Headers finais
 			const finalHeaders = new Headers(headers);
 			if (contentType && !finalHeaders.has('content-type')) {
 				finalHeaders.set('content-type', contentType);
 			}
 			finalHeaders.set('x-internal-workflow', '1');
 
-			// normaliza body
-			let body;
-			if (payload == null) {
-				body = undefined;
-			} else if (typeof payload === 'string') {
-				body = payload;
-			} else if (payload instanceof ArrayBuffer || payload instanceof Uint8Array) {
-				body = payload;
-			} else if ((finalHeaders.get('content-type') || '').includes('application/json')) {
-				body = JSON.stringify(payload);
-			} else {
-				body = String(payload);
-			}
 
-			// log de saída
-			const len = typeof body === 'string' ? body.length : body?.byteLength ?? 0;
-			console.log('[WORKFLOW] Step 1: Enviando POST →', url.toString());
-			console.log('[WORKFLOW OUT] CT =', finalHeaders.get('content-type'), 'LEN =', len);
+			const  finalBody = JSON.stringify({payload: payload || {}, headers: headers || {}});
 
-			// STEP 1: faz o POST
-			const result = await step.do('POST para Worker alvo', async () => {
-				const resp = await fetch(url.toString(), {method, headers: finalHeaders, body});
+			// Log e Step 1
+			const len = typeof finalBody === 'string' ? finalBody.length : finalBody?.byteLength ?? 0;
+			console.log(
+				`[WORKFLOW] Step 1: Enviando ${method} → ${url.toString()} | CT=${finalHeaders.get(
+					'content-type'
+				)} | LEN=${len}`
+			);
+
+			const result = await step.do('Step 1 - POST para', async () => {
+				const resp = await fetch(url.toString(), {
+					method,
+					headers: finalHeaders,
+					body: finalBody,
+				}); // ← Usa finalBody
 				const text = await resp.text();
-				return {status: resp.status, body: text};
+				return {
+					status: resp.status,
+					body: text,
+					headers: Object.fromEntries(resp.headers.entries()),
+				};
 			});
 
 			console.log(`[WORKFLOW] Step 1 completo. Status: ${result.status}`);
-			console.log('[WORKFLOW IN <- TARGET] preview:', result.body?.slice(0, 600) || '(vazio)');
+			console.log('[WORKFLOW IN <- TARGET] preview:', result.body?.slice(0, 300) || '(vazio)');
 
-			// STEP 2: callback opcional
-			if (callbackUrl) {
-				await this.sendCallback(callbackUrl, result);
-			}
+			// Step 2
+			const processed = await step.do('Step 2 - Processar e enviar', async () => {
+				let parsed;
+				try {
+					parsed = JSON.parse(result.body);
+				} catch {
+					parsed = {raw: result.body};
+				}
 
-			return {done: true, result};
+				if (callbackUrl) {
+					await this.sendCallback(callbackUrl, {
+						status: result.status,
+						data: parsed,
+						headers: result.headers,
+						originalBody: body,
+						originalPayload: payload,
+					});
+				}
+
+				return {ok: true, data: parsed};
+			});
+
+			console.log('[WORKFLOW] Step 2 completo. Resultado processado:', processed);
+			console.log('[WORKFLOW] Finalizado com sucesso.');
+
+			return {done: true, result: processed};
 		} catch (err) {
 			console.error('[WORKFLOW] Erro:', err?.message || err);
 			return {done: false, error: String(err?.message || err)};
 		}
 	}
-
-	buildHeaders(headers, contentType) {
-		const finalHeaders = new Headers(headers);
-		if (contentType && !finalHeaders.has('content-type')) {
-			finalHeaders.set('content-type', contentType);
-		}
-		finalHeaders.set('x-internal-workflow', '1');
-		return finalHeaders;
-	}
-
-	buildBody(payload, finalHeaders) {
-		if (payload == null) return undefined;
-		if (
-			typeof payload === 'string' ||
-			payload instanceof ArrayBuffer ||
-			payload instanceof Uint8Array
-		) {
-			return payload;
-		}
-		if ((finalHeaders.get('content-type') || '').includes('application/json')) {
-			return JSON.stringify(payload);
-		}
-		return String(payload);
-	}
-	//decide como transformar o payload em algo/formato a ser enviado pelo fetch
 
 	async sendCallback(callbackUrl, result) {
 		await fetch(callbackUrl, {
@@ -101,6 +93,5 @@ export class MeuWorkflow extends WorkflowEntrypoint {
 				timestamp: new Date().toISOString(),
 			}),
 		});
-		console.log('[WORKFLOW] Callback enviado com sucesso.');
 	}
 }
