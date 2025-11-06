@@ -6,43 +6,54 @@ export class MeuWorkflow extends WorkflowEntrypoint {
 			const {
 				targetUrl,
 				callbackUrl,
-				payload,
 				headers = {},
 				body,
-				// method = 'POST', nao precisa ja ta vindo so start fixo POST
+				contentType = 'application/json',
+				method = 'POST',
 			} = event?.payload ?? {};
 
 			// Monta URL
 			const url = new URL(targetUrl);
 
-			// Headers finais
 			const finalHeaders = new Headers(headers);
 			if (contentType && !finalHeaders.has('content-type')) {
 				finalHeaders.set('content-type', contentType);
 			}
 			finalHeaders.set('x-internal-workflow', '1');
 
+			let payload = body;
+			if (typeof body === 'object') {
+				payload = JSON.stringify(body);
+			}
 
-			const  finalBody = JSON.stringify({payload: payload || {}, headers: headers || {}});
-
+			// Step 1 POST para o targetUrl
 			const result = await step.do('Step 1 - POST para', async () => {
 				const resp = await fetch(url.toString(), {
 					method,
 					headers: finalHeaders,
-					body: finalBody,
-				}); // ← Usa finalBody
+					body: payload,
+				});
 				const text = await resp.text();
 				return {
 					status: resp.status,
 					body: text,
-					headers: Object.fromEntries(resp.headers.entries()),
+					headers: Object.fromEntries(resp.headers.entries()), // Coletando os headers da resposta
 				};
 			});
 
 			console.log(`[WORKFLOW] Step 1 completo. Status: ${result.status}`);
-			console.log('[WORKFLOW IN <- TARGET] preview:', result.body?.slice(0, 300) || '(vazio)');
 
-			// Step 2
+			//console so pra ver oque chegou da request
+			console.log(
+				'[WORKFLOW IN <- TARGET] preview body:',
+				result.body?.slice(0, 300) || '(vazio)'
+			);
+			console.log(
+				'[WORKFLOW IN <- TARGET] preview headers:',
+				JSON.stringify(headers, null, 2) || '(vazio)'
+			);
+
+			// Step 2  Processar e enviar para callback
 			const processed = await step.do('Step 2 - Processar e enviar', async () => {
 				let parsed;
 				try {
@@ -51,20 +62,26 @@ export class MeuWorkflow extends WorkflowEntrypoint {
 					parsed = {raw: result.body};
 				}
 
+				// Envia os dados processados para o callback
 				if (callbackUrl) {
+					const dataComHeaders = {
+						payload: parsed || body,
+						headers: headers,
+						id: parsed.id,
+					};
+
 					await this.sendCallback(callbackUrl, {
 						status: result.status,
-						data: parsed,
-						headers: result.headers,
-						originalBody: body,
-						originalPayload: payload,
+						data: dataComHeaders,
 					});
+					
+					console.log('[WORKFLOW] Step 2 completo. Resultado processado:');
+					console.log('[WORKFLOW] Dados enviados ao callback:', {status: result.status,data: dataComHeaders,});
 				}
 
 				return {ok: true, data: parsed};
 			});
 
-			console.log('[WORKFLOW] Step 2 completo. Resultado processado:', processed);
 			console.log('[WORKFLOW] Finalizado com sucesso.');
 
 			return {done: true, result: processed};
@@ -74,6 +91,7 @@ export class MeuWorkflow extends WorkflowEntrypoint {
 		}
 	}
 
+	// Envia o callback
 	async sendCallback(callbackUrl, result) {
 		await fetch(callbackUrl, {
 			method: 'POST',
