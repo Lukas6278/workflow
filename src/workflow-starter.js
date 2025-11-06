@@ -4,8 +4,8 @@ export default {
 	async fetch(request, env) {
 		const url = new URL(request.url);
 
-		// Aceita apenas POST em /redi
-		if (url.pathname === '/redi' && request.method === 'POST') {
+		// Aceita apenas request em /redi
+		if (url.pathname === '/redi') {
 			try {
 				const bodyData = await request.json();
 
@@ -16,6 +16,13 @@ export default {
 
 				const method = bodyData.method || 'POST';
 
+				const validMethods = ['GET', 'POST', 'PUT', 'HEAD', 'OPTIONS', 'PATCH'];
+				if (!validMethods.includes(method)) {
+					return new Response(JSON.stringify({error: 'Método inválido'}), {
+						status: 400,
+						headers: {'Content-Type': 'application/json'},
+					});
+				}
 
 				//cria workflow se tiver um dos dois com valor se nao, mas se nao tiver os dois nao cria
 				if (Object.keys(payload).length === 0 && Object.keys(headers).length === 0) {
@@ -32,6 +39,7 @@ export default {
 					body: payload,
 					method,
 				});
+
 
 				// se callbackUrl ou targetUrl não forem enviados erro 400
 				if (!targetUrl || !callbackUrl) {

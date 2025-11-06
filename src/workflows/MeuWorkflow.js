@@ -9,7 +9,7 @@ export class MeuWorkflow extends WorkflowEntrypoint {
 				headers = {},
 				body,
 				contentType = 'application/json',
-				method = 'POST',
+				method,
 			} = event?.payload ?? {};
 
 			// Monta URL
@@ -27,7 +27,7 @@ export class MeuWorkflow extends WorkflowEntrypoint {
 			}
 
 			// Step 1 POST para o targetUrl
-			const result = await step.do('Step 1 - POST para', async () => {
+			const result = await step.do(`Step 1 - request para ${url}`, async () => {
 				const resp = await fetch(url.toString(), {
 					method,
 					headers: finalHeaders,
@@ -43,7 +43,7 @@ export class MeuWorkflow extends WorkflowEntrypoint {
 
 			console.log(`[WORKFLOW] Step 1 completo. Status: ${result.status}`);
 
-			//console so pra ver oque chegou da request
+			//console so pra ver oque chegou da request nao necessario tava usando so pra ver c tava chegando certo
 			console.log(
 				'[WORKFLOW IN <- TARGET] preview body:',
 				result.body?.slice(0, 300) || '(vazio)'
@@ -54,7 +54,7 @@ export class MeuWorkflow extends WorkflowEntrypoint {
 			);
 
 			// Step 2  Processar e enviar para callback
-			const processed = await step.do('Step 2 - Processar e enviar', async () => {
+			const processed = await step.do('Step 2 - Processado e enviado para callback', async () => {
 				let parsed;
 
 				try {
