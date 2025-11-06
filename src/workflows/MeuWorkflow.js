@@ -56,6 +56,7 @@ export class MeuWorkflow extends WorkflowEntrypoint {
 			// Step 2  Processar e enviar para callback
 			const processed = await step.do('Step 2 - Processar e enviar', async () => {
 				let parsed;
+
 				try {
 					parsed = JSON.parse(result.body);
 				} catch {
@@ -65,7 +66,7 @@ export class MeuWorkflow extends WorkflowEntrypoint {
 				// Envia os dados processados para o callback
 				if (callbackUrl) {
 					const dataComHeaders = {
-						payload: parsed || body,
+						payload: body,
 						headers: headers,
 						id: parsed.id,
 					};
@@ -79,7 +80,7 @@ export class MeuWorkflow extends WorkflowEntrypoint {
 					console.log('[WORKFLOW] Dados enviados ao callback:', {status: result.status,data: dataComHeaders,});
 				}
 
-				return {ok: true, data: parsed};
+				return {ok: true, payload: body, headers: headers };
 			});
 
 			console.log('[WORKFLOW] Finalizado com sucesso.');
