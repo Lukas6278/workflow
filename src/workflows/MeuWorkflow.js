@@ -35,13 +35,13 @@ export class MeuWorkflow extends WorkflowEntrypoint {
 				fetchOptions.body = undefined;
 			}
 
-			// Step 1 POST para o targetUrl
+			// Step 1 method para o targetUrl
 			const result = await step.do(`Step 1 - ${method} para ${url}`, async () => {
 				const resp = await fetch(url.toString(), fetchOptions);
-				const text = await resp.text();
+				const json = await resp.json();
 				return {
 					status: resp.status,
-					body: text,
+					body: json,
 					headers: Object.fromEntries(resp.headers.entries()),
 				};
 			});
@@ -52,7 +52,7 @@ export class MeuWorkflow extends WorkflowEntrypoint {
 			const processed = await step.do('Step 2 - Processado e enviado para callback', async () => {
 				if (callbackUrl) {
 					const dataComHeaders = {
-						payload: JSON.parse(result.body),
+						payload: result.body,
 						headers: result.headers,
 					};
 
@@ -71,7 +71,7 @@ export class MeuWorkflow extends WorkflowEntrypoint {
 					});
 				}
 
-				return {ok: true, payload: JSON.parse(result.body), headers: result.headers};
+				return {ok: true, payload: result.body, headers: result.headers};
 			});
 
 			console.log('[WORKFLOW] Finalizado com sucesso.');
