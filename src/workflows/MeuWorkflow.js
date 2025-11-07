@@ -38,10 +38,10 @@ export class MeuWorkflow extends WorkflowEntrypoint {
 			// Step 1 method para o targetUrl
 			const result = await step.do(`Step 1 - ${method} para ${url}`, async () => {
 				const resp = await fetch(url.toString(), fetchOptions);
-				const json = await resp.json();
+				const text = await resp.text();
 				return {
 					status: resp.status,
-					body: json,
+					body: text,
 					headers: Object.fromEntries(resp.headers.entries()),
 				};
 			});
@@ -50,9 +50,9 @@ export class MeuWorkflow extends WorkflowEntrypoint {
 
 			// Step 2 enviar para callback
 			const processed = await step.do('Step 2 - Processado e enviado para callback', async () => {
-				if (callbackUrl) {
+				try {
 					const dataComHeaders = {
-						payload: result.body,
+						payload: JSON.parse(result.body),
 						headers: result.headers,
 					};
 
@@ -65,19 +65,22 @@ export class MeuWorkflow extends WorkflowEntrypoint {
 					console.log('[WORKFLOW] Dados enviados ao callback:', {
 						status: result.status,
 						data: {
-							payload: JSON.stringify(result.body), // Transforma o array em string
+							payload: JSON.stringify(result.body),
 							headers: result.headers,
 						},
 					});
+				} catch (err) {
+					console.error('[WORKFLOW] Erro no Step 2 ao enviar para callback:', err);
+					return {ok: false, error: 'Erro ao enviar callback', detail: err.toString()};
 				}
 
-				return {ok: true, payload: result.body, headers: result.headers};
+				return {ok: true, payload: JSON.stringify(result.body), headers: result.headers};
 			});
 
 			console.log('[WORKFLOW] Finalizado com sucesso.');
 			return {done: true, result: processed};
 		} catch (err) {
-			console.error('[WORKFLOW] Erro:', err?.message || err);
+			console.error('[WORKFLOW] Erro no Step 1:', err?.message || err);
 			return {done: false, error: String(err?.message || err)};
 		}
 	}
