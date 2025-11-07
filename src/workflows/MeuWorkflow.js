@@ -36,7 +36,7 @@ export class MeuWorkflow extends WorkflowEntrypoint {
 			}
 
 			// Step 1 POST para o targetUrl
-			const result = await step.do(`Step 1 - request para ${url}`, async () => {
+			const result = await step.do(`Step 1 - ${method} para ${url}`, async () => {
 				const resp = await fetch(url.toString(), fetchOptions);
 				const text = await resp.text();
 				return {
