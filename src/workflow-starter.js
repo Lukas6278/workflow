@@ -16,7 +16,7 @@ export default {
 
 				const method = bodyData.method || 'POST';
 
-				//cria workflow se tiver um dos dois com valor se nao, mas se nao tiver os dois nao cria
+				//cria workflow se tiver um dos dois com valor, mas se nao tiver os dois nao cria
 				if (Object.keys(payload).length === 0 && Object.keys(headers).length === 0) {
 					return new Response(
 						JSON.stringify({error: 'body e headers não podem estar vazios'}),

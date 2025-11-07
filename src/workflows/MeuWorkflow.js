@@ -37,7 +37,7 @@ export class MeuWorkflow extends WorkflowEntrypoint {
 
 			// Step 1 POST para o targetUrl
 			const result = await step.do(`Step 1 - request para ${url}`, async () => {
-				const resp = await fetch(url.toString(), fetchOptions); // Usando fetchOptions
+				const resp = await fetch(url.toString(), fetchOptions);
 				const text = await resp.text();
 				return {
 					status: resp.status,
@@ -64,7 +64,10 @@ export class MeuWorkflow extends WorkflowEntrypoint {
 					console.log('[WORKFLOW] Step 2 completo. Resultado processado:');
 					console.log('[WORKFLOW] Dados enviados ao callback:', {
 						status: result.status,
-						data: dataComHeaders,
+						data: {
+							payload: JSON.stringify(result.body), // Transforma o array em string
+							headers: result.headers,
+						},
 					});
 				}
 
