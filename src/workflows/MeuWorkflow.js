@@ -31,9 +31,8 @@ export class MeuWorkflow extends WorkflowEntrypoint {
 				headers: finalHeaders,
 			};
 
-			// Adiciona o corpo somente se o método não for GET ou HEAD
-			if (method !== 'GET' && method !== 'HEAD') {
-				fetchOptions.body = payload;
+			if (method === 'GET' || method === 'HEAD') {
+				fetchOptions.body = undefined;
 			}
 
 			// Step 1 POST para o targetUrl
@@ -53,7 +52,7 @@ export class MeuWorkflow extends WorkflowEntrypoint {
 			const processed = await step.do('Step 2 - Processado e enviado para callback', async () => {
 				if (callbackUrl) {
 					const dataComHeaders = {
-						payload: result.body, // Envia a resposta do servidor (body da resposta)
+						payload: result.body,
 						headers: result.headers,
 					};
 
